@@ -14,7 +14,7 @@
     }
     h1 { margin-bottom: 10px; }
     .team {
-      margin-bottom: 20px;
+      /* margin-bottom: 20px; */
       border: 1px solid #ccc;
       padding: 10px;
       border-radius: 8px;
@@ -26,7 +26,7 @@
       font-size: 16px;
     }
     .timer-controls {
-      margin-top: 20px;
+      /* margin-top: 20px; */
       border: 1px solid #ccc;
       padding: 10px;
       border-radius: 8px;
@@ -54,7 +54,7 @@
     <div class="controls">
         <div class="team">
             <select id="team1-select" onchange="setTeam('team1')" 
-                style="font-size: 20px; font-weight: bold; padding: 10px; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 5px; background: white;">
+                style="font-size: 20px; font-weight: bold; padding: 10Aftpx; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 5px; background: white;">
                 <option value="Grizzlies FC" data-color="maroon" selected>Grizzlies FC</option>
                 <option value="Sports Experts" data-color="white">Sports Experts</option>
                 <option value="Good Vibes FC" data-color="blue">Good Vibes FC</option>
@@ -80,8 +80,7 @@
                 <input type="number" id="timer-seconds" value="0" min="0" max="59" style="width: 60px; margin: 0 10px;">
                 <button onclick="setTimerDuration()">Set Duration</button>  
             </div>
-            <button onclick="sendCommand('startTimer')">Start</button>
-            <button onclick="sendCommand('stopTimer')">Stop</button>
+            <button id="toggle-timer" onclick="toggleTimer()">Start</button>
             <button onclick="sendCommand('resetTimer')">Reset</button>
         </div>
 
@@ -105,7 +104,7 @@
 
   <div style="margin: 20px 0; text-align: center;">
     <button onclick="sendCommand('switchSides')" style="padding: 15px 30px; font-size: 18px; background-color: #ff6b6b; color: white; border: none; border-radius: 5px;">Switch Sides</button>
-    
+
   </div>
 
   <script src="client.js"></script>

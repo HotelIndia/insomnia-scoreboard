@@ -50,19 +50,24 @@ wss.on("connection", ws => {
           gameState[msg.team].score++;
           break;
         case "decScore":
-          gameState[msg.team].score--;
+        //   gameState[msg.team].score--;
+          gameState[msg.team].score = Math.max(0, gameState[msg.team].score - 1);
           break;
         case "incFoul":
           gameState[msg.team].fouls++;
           break;
         case "decFoul":
-          gameState[msg.team].fouls--;
+        //   gameState[msg.team].fouls--;
+          gameState[msg.team].fouls = Math.max(0, gameState[msg.team].fouls - 1);
           break;
-        case "startTimer":
+        case "Timer":
           gameState.timer.running = true;
           break;
         case "stopTimer":
           gameState.timer.running = false;
+          break;
+        case "startTimer":
+          gameState.timer.running = true;
           break;
         case "resetTimer":
           gameState.timer.seconds = gameState.timer.initialSeconds;
@@ -94,19 +99,39 @@ wss.on("connection", ws => {
   });
 });
 
-// Timer logic (runs every second)
+let lastTick = Date.now();
+
 setInterval(() => {
   if (gameState.timer.running) {
-    if (gameState.timer.seconds > 0) {
-      gameState.timer.seconds--;
-      broadcastState();
-    } else {
-      // Timer reached 0, stop it
-      gameState.timer.running = false;
-      broadcastState();
+    const now = Date.now();
+    const elapsed = Math.floor((now - lastTick) / 1000);
+
+    if (elapsed >= 1) {
+      lastTick = now;
+
+      if (gameState.timer.seconds > 1) {
+        gameState.timer.seconds -= elapsed;
+        broadcastState();
+      } else if (gameState.timer.seconds === 1) {
+        gameState.timer.seconds = 0;
+        gameState.timer.running = false;
+        broadcastState();
+
+        // Send buzzer event now
+        const buzzerMsg = JSON.stringify({ type: "buzzer" });
+        wss.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(buzzerMsg);
+          }
+        });
+      }
     }
+  } else {
+    lastTick = Date.now(); // reset reference when paused
   }
-}, 1000);
+}, 200); // check 5x per second for smoother timing
+
+
 
 // Start the server
 const PORT = 3000;

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scorebug</title>
+  <style>
+    body {
+      margin: 0;
+      background: white; /* For browser preview; set transparent in OBS */
+      font-family: "Arial", sans-serif;
+    }
+
+    .scorebug {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      /* width: 100%; */
+      width: 1024px;
+      height: 120px;
+      box-sizing: border-box;
+      /* border: 2px solid #000; */
+      border: 2px solid blue;
+      padding: 10px 30px;
+      background: white; /* */
+    }
+
+    .team {
+      display: flex;
+      align-items: center;
+      font-weight: bold;
+      font-size: 48px;
+    }
+
+    .team img {
+      height: 80px;
+      width: 80px;
+      object-fit: contain;
+      margin-right: 15px;
+      margin-left: 15px;
+    }
+
+    .score {
+      font-size: 64px;
+      margin: 0 15px;
+      min-width: 70px;
+      text-align: center;
+      color: black !important;
+    }
+
+    .divider {
+      font-size: 64px;
+      font-weight: bold;
+      color: #000;
+      margin: 0 10px;
+    }
+
+    .timer {
+      font-size: 56px;
+      font-weight: bold;
+      padding: 10px 25px;
+      border: 3px solid #000;
+      border-radius: 10px;
+      background: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="scorebug">
+    <div class="team" id="left-team">
+      <img id="team1-logo" src="GrizzliesFC.png" alt="Team 1 Logo">
+      <span id="team1-abbr">GFC</span>
+      <span class="score" id="team1-score">0</span>
+    </div>
+
+    <div class="divider">|</div>
+
+    <div class="team" id="right-team">
+      <span class="score" id="team2-score">0</span>
+      <span id="team2-abbr">GVFC</span>
+      <img id="team2-logo" src="GoodVibesFC.png" alt="Team 2 Logo">
+    </div>
+
+    <div class="timer" id="timer">20:00</div>
+  </div>
+
+  <script src="client.js"></script>
+  <script>
+    // Map team names to short codes and logos
+    const teamAssets = {
+      "Grizzlies FC": { abbr: "GFC", logo: "GrizzliesFC.png" },
+      "Good Vibes FC": { abbr: "GVFC", logo: "GoodVibesFC.png" },
+      "Riverdale FC": { abbr: "RDFC", logo: "RDFC.png" },
+      "Sports Experts": { abbr: "SE", logo: "SportsExperts.png" }
+    };
+
+    // Extend the existing updateUI function
+    const originalUpdateUI = updateUI;
+    updateUI = function(state) {
+      originalUpdateUI(state);
+
+      // Determine current left/right teams based on sidesSwitched
+      const leftTeam = state.sidesSwitched ? state.team2 : state.team1;
+      const rightTeam = state.sidesSwitched ? state.team1 : state.team2;
+
+      const leftAbbr = teamAssets[leftTeam.name]?.abbr || "TEAM1";
+      const rightAbbr = teamAssets[rightTeam.name]?.abbr || "TEAM2";
+
+      const leftLogo = teamAssets[leftTeam.name]?.logo || "";
+      const rightLogo = teamAssets[rightTeam.name]?.logo || "";
+
+      // Update scores and display
+      document.getElementById("team1-score").textContent = leftTeam.score;
+      document.getElementById("team2-score").textContent = rightTeam.score;
+
+      // Update abbreviations
+      document.getElementById("team1-abbr").textContent = leftAbbr;
+      document.getElementById("team2-abbr").textContent = rightAbbr;
+
+      // Update logos
+      document.getElementById("team1-logo").src = leftLogo;
+      document.getElementById("team2-logo").src = rightLogo;
+
+      // Timer already handled by originalUpdateUI()
+    };
+  </script>
+</body>
+</html>

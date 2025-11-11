@@ -11,6 +11,13 @@ socket.onmessage = (event) => {
   if (msg.type === "state") {
     updateUI(msg.data);
   }
+  else if (msg.type === "buzzer") {
+    const buzzer = document.getElementById("buzzer");
+    if (buzzer) {
+      buzzer.currentTime = 0; // rewind to start
+      buzzer.play().catch(err => console.error("Buzzer play error:", err));
+    }
+  }
 };
 
 function sendCommand(action, team) {
@@ -64,6 +71,8 @@ function setTeam(team) {
 // Global variable to track current state for dropdown mapping
 let currentState = null;
 
+//Note
+// when I switch sides, I need the left score button to map to team2
 function updateUI(state) {
   // Store current state for dropdown mapping
   currentState = state;
@@ -117,4 +126,119 @@ function updateUI(state) {
     document.getElementById("timer").textContent =
       `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }
+
+  // Updating the timer button to show the right action
+  timerRunning = state.timer.running;
+  updateToggleButton();
+
+  // Keep screen awake only while timer is running
+  if (state.timer.running) {
+    requestWakeLock();
+    // play no_sound audio
+    const no_sound = document.getElementById("no_sound");
+    if (no_sound) {
+      no_sound.currentTime = 0; // rewind to start
+      no_sound.play().catch(err => console.error("No_sound play error:", err));
+    }
+
+    // const buzzer = document.getElementById("buzzer");
+    // if (buzzer) {
+    //   buzzer.currentTime = 0; // rewind to start
+    //   buzzer.play().catch(err => console.error("Buzzer play error:", err));
+    // }
+
+  } else {
+    releaseWakeLock();
+  }
+
 }
+
+// Track current timer state
+let timerRunning = false;
+
+function toggleTimer() {
+  const action = timerRunning ? "stopTimer" : "startTimer";
+  sendCommand(action);
+  timerRunning = !timerRunning;
+  updateToggleButton();
+}
+
+function updateToggleButton() {
+  const btn = document.getElementById("toggle-timer");
+  if (btn) {
+    btn.textContent = timerRunning ? "Stop" : "Start";
+  }
+}
+
+// Allow spacebar to toggle timer
+document.addEventListener("keydown", (event) => {
+  if (event.code === "Space") {
+    event.preventDefault(); // Prevent scrolling
+    toggleTimer();
+  }
+});
+
+function sendCommand(action, team) {
+  if (typeof socket !== "undefined" && socket.readyState === WebSocket.OPEN) {
+
+    // Adjust for switched sides if applicable
+    let actualTeam = team;
+    if (currentState && currentState.sidesSwitched && team) {
+      actualTeam = team === "team1" ? "team2" : "team1";
+    }
+
+    socket.send(JSON.stringify({
+      type: "command",
+      action,
+      team: actualTeam
+    }));
+  }
+}
+
+// ------------------------------
+// Screen Wake Lock logic
+// ------------------------------
+
+let wakeLock = null;
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log("Screen Wake Lock activated");
+
+      const indicator = document.getElementById("wake-lock-indicator");
+      if (indicator) indicator.style.opacity = "1";
+
+      wakeLock.addEventListener('release', () => {
+        console.log("Screen Wake Lock released");
+        if (indicator) indicator.style.opacity = "0";
+      });
+    }
+  } catch (err) {
+    console.error("Wake Lock request failed:", err);
+  }
+}
+
+async function releaseWakeLock() {
+  if (wakeLock) {
+    await wakeLock.release();
+    wakeLock = null;
+    console.log("Screen Wake Lock manually released");
+  }
+  const indicator = document.getElementById("wake-lock-indicator");
+  if (indicator) indicator.style.opacity = "0";
+}
+
+// Reacquire lock if tab becomes visible again
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && currentState?.timer.running) {
+    requestWakeLock();
+  } else {
+    releaseWakeLock();
+  }
+});
+
+
+
+
