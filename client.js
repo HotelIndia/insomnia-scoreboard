@@ -18,11 +18,15 @@ let wakeLock = null;
 // ===================================================
 
 onValue(window.gameStateRef, (snapshot) => {
-  const state = snapshot.val();
-  if (!state) return;
+  try {
+    const state = snapshot.val();
+    if (!state) return;
 
-  currentState = state;
-  updateUI(state);
+    currentState = state;
+    updateUI(state);
+  } catch (error) {
+    console.error("Error updating state:", error);
+  }
 });
 
 // ===================================================
@@ -32,51 +36,62 @@ onValue(window.gameStateRef, (snapshot) => {
 window.sendCommand = function (action, team) {
   if (!currentState) return;
 
-  switch (action) {
-    case "incScore":
-      update(window.gameStateRef, {
-        [`${team}/score`]: currentState[team].score + 1
-      });
-      break;
+  try {
+    switch (action) {
+      case "incScore":
+        if (!currentState[team] || typeof currentState[team].score !== "number") return;
+        update(window.gameStateRef, {
+          [`${team}/score`]: currentState[team].score + 1
+        }).catch(error => console.error("Error updating score:", error));
+        break;
 
-    case "decScore":
-      update(window.gameStateRef, {
-        [`${team}/score`]: Math.max(0, currentState[team].score - 1)
-      });
-      break;
+      case "decScore":
+        if (!currentState[team] || typeof currentState[team].score !== "number") return;
+        update(window.gameStateRef, {
+          [`${team}/score`]: Math.max(0, currentState[team].score - 1)
+        }).catch(error => console.error("Error updating score:", error));
+        break;
 
-    case "incFoul":
-      update(window.gameStateRef, {
-        [`${team}/fouls`]: currentState[team].fouls + 1
-      });
-      break;
+      case "incFoul":
+        if (!currentState[team] || typeof currentState[team].fouls !== "number") return;
+        update(window.gameStateRef, {
+          [`${team}/fouls`]: currentState[team].fouls + 1
+        }).catch(error => console.error("Error updating fouls:", error));
+        break;
 
-    case "decFoul":
-      update(window.gameStateRef, {
-        [`${team}/fouls`]: Math.max(0, currentState[team].fouls - 1)
-      });
-      break;
+      case "decFoul":
+        if (!currentState[team] || typeof currentState[team].fouls !== "number") return;
+        update(window.gameStateRef, {
+          [`${team}/fouls`]: Math.max(0, currentState[team].fouls - 1)
+        }).catch(error => console.error("Error updating fouls:", error));
+        break;
 
-    case "startTimer":
-      update(window.gameStateRef, { "timer/running": true });
-      break;
+      case "startTimer":
+        update(window.gameStateRef, { "timer/running": true })
+          .catch(error => console.error("Error starting timer:", error));
+        break;
 
-    case "stopTimer":
-      update(window.gameStateRef, { "timer/running": false });
-      break;
+      case "stopTimer":
+        update(window.gameStateRef, { "timer/running": false })
+          .catch(error => console.error("Error stopping timer:", error));
+        break;
 
-    case "resetTimer":
-      update(window.gameStateRef, {
-        "timer/seconds": currentState.timer.initialSeconds,
-        "timer/running": false
-      });
-      break;
+      case "resetTimer":
+        if (!currentState.timer || typeof currentState.timer.initialSeconds !== "number") return;
+        update(window.gameStateRef, {
+          "timer/seconds": currentState.timer.initialSeconds,
+          "timer/running": false
+        }).catch(error => console.error("Error resetting timer:", error));
+        break;
 
-    case "switchSides":
-      update(window.gameStateRef, {
-        "sidesSwitched": !currentState.sidesSwitched
-      });
-      break;
+      case "switchSides":
+        update(window.gameStateRef, {
+          "sidesSwitched": !currentState.sidesSwitched
+        }).catch(error => console.error("Error switching sides:", error));
+        break;
+    }
+  } catch (error) {
+    console.error("Error in sendCommand:", error);
   }
 };
 
@@ -86,37 +101,50 @@ window.sendCommand = function (action, team) {
 
 let lastTick = Date.now();
 
-setInterval(() => {
-  if (!currentState?.timer?.running) {
-    lastTick = Date.now();
-    return;
-  }
-
-  const now = Date.now();
-  if (now - lastTick >= 1000) {
-    lastTick = now;
-
-    const next = Math.max(0, currentState.timer.seconds - 1);
-
-    update(window.gameStateRef, {
-      "timer/seconds": next,
-      "timer/running": next > 0
-    });
-
-    if (next === 0) {
-      update(window.gameStateRef, {
-        "lastBuzzer": Date.now()
-      });
+// Only run timer loop on controller page to prevent race conditions
+if (window.isController) {
+  setInterval(() => {
+    if (!currentState?.timer?.running) {
+      lastTick = Date.now();
+      return;
     }
-  }
-}, 200);
+
+    if (!currentState.timer || typeof currentState.timer.seconds !== "number") {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastTick >= 1000) {
+      lastTick = now;
+
+      const next = Math.max(0, currentState.timer.seconds - 1);
+
+      update(window.gameStateRef, {
+        "timer/seconds": next,
+        "timer/running": next > 0
+      }).catch(error => console.error("Error updating timer:", error));
+
+      if (next === 0) {
+        update(window.gameStateRef, {
+          "lastBuzzer": Date.now()
+        }).catch(error => console.error("Error setting buzzer:", error));
+      }
+    }
+  }, 200);
+}
 
 // ===================================================
 // BUZZER LISTENER (replaces WS event)
 // ===================================================
 
-onValue(ref(window.db, "gameState/lastBuzzer"), () => {
-  playBuzzer();
+onValue(ref(window.db, "gameState/lastBuzzer"), (snapshot) => {
+  try {
+    if (snapshot.exists()) {
+      playBuzzer();
+    }
+  } catch (error) {
+    console.error("Error in buzzer listener:", error);
+  }
 });
 
 // ===================================================
@@ -124,33 +152,44 @@ onValue(ref(window.db, "gameState/lastBuzzer"), () => {
 // ===================================================
 
 window.setTimerDuration = function () {
-  const minutes = parseInt(document.getElementById("timer-minutes").value) || 0;
-  const seconds = parseInt(document.getElementById("timer-seconds").value) || 0;
+  try {
+    const minutes = parseInt(document.getElementById("timer-minutes").value) || 0;
+    const seconds = parseInt(document.getElementById("timer-seconds").value) || 0;
 
-  const total = minutes * 60 + seconds;
+    const total = minutes * 60 + seconds;
 
-  update(window.gameStateRef, {
-    "timer/initialSeconds": total,
-    "timer/seconds": total,
-    "timer/running": false
-  });
+    update(window.gameStateRef, {
+      "timer/initialSeconds": total,
+      "timer/seconds": total,
+      "timer/running": false
+    }).catch(error => console.error("Error setting timer duration:", error));
+  } catch (error) {
+    console.error("Error in setTimerDuration:", error);
+  }
 };
 
 window.setTeam = function (team) {
   if (!currentState) return;
 
-  const select = document.getElementById(`${team}-select`);
-  const option = select.options[select.selectedIndex];
+  try {
+    const select = document.getElementById(`${team}-select`);
+    if (!select || !select.options || select.selectedIndex < 0) return;
 
-  let actualTeam = team;
-  if (currentState.sidesSwitched) {
-    actualTeam = team === "team1" ? "team2" : "team1";
+    const option = select.options[select.selectedIndex];
+    if (!option) return;
+
+    let actualTeam = team;
+    if (currentState.sidesSwitched) {
+      actualTeam = team === "team1" ? "team2" : "team1";
+    }
+
+    update(window.gameStateRef, {
+      [`${actualTeam}/name`]: option.value,
+      [`${actualTeam}/color`]: option.dataset.color || ""
+    }).catch(error => console.error("Error setting team:", error));
+  } catch (error) {
+    console.error("Error in setTeam:", error);
   }
-
-  update(window.gameStateRef, {
-    [`${actualTeam}/name`]: option.value,
-    [`${actualTeam}/color`]: option.dataset.color
-  });
 };
 
 window.toggleTimer = function () {
@@ -266,8 +305,10 @@ function updateToggleButton() {
 }
 
 function updateTimer(state) {
+  if (!state || !state.timer) return;
+
   const timerEl = document.getElementById("timer");
-  if (timerEl) {
+  if (timerEl && typeof state.timer.seconds === "number") {
     const m = Math.floor(state.timer.seconds / 60);
     const s = state.timer.seconds % 60;
     timerEl.textContent = `${m.toString().padStart(2, "0")}:${s
@@ -275,7 +316,7 @@ function updateTimer(state) {
       .padStart(2, "0")}`;
   }
 
-  timerRunning = state.timer.running;
+  timerRunning = state.timer.running || false;
   updateToggleButton();
 
   if (state.timer.running) {
@@ -287,10 +328,19 @@ function updateTimer(state) {
 }
 
 function updateUI(state) {
-  const left = state.sidesSwitched ? state.team2 : state.team1;
-  const right = state.sidesSwitched ? state.team1 : state.team2;
+  if (!state || !state.team1 || !state.team2) return;
 
-  updateLeftTeam(left);
-  updateRightTeam(right);
-  updateTimer(state);
+  try {
+    const left = state.sidesSwitched ? state.team2 : state.team1;
+    const right = state.sidesSwitched ? state.team1 : state.team2;
+
+    updateLeftTeam(left);
+    updateRightTeam(right);
+    updateTimer(state);
+  } catch (error) {
+    console.error("Error in updateUI:", error);
+  }
 }
+
+// Expose updateUI on window for scorebug.html to override
+window.updateUI = updateUI;

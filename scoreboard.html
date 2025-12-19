@@ -124,6 +124,8 @@
     // Expose for client.js
     window.db = db;
     window.gameStateRef = gameStateRef;
+    // Not the controller, so timer loop won't run
+    window.isController = false;
   </script>
 
   <script type="module" src="client.js"></script>

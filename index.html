@@ -54,7 +54,7 @@
     <div class="controls">
         <div class="team">
             <select id="team1-select" onchange="setTeam('team1')" 
-                style="font-size: 20px; font-weight: bold; padding: 10Aftpx; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 5px; background: white;">
+                style="font-size: 20px; font-weight: bold; padding: 10px; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 5px; background: white;">
                 <option value="Grizzlies FC" data-color="maroon" selected>Grizzlies FC</option>
                 <option value="Sports Experts" data-color="white">Sports Experts</option>
                 <option value="Good Vibes FC" data-color="blue">Good Vibes FC</option>
@@ -128,13 +128,14 @@
 
     const app = initializeApp(firebaseConfig);
 
+    // Initialize Firebase database and references
+    const db = getDatabase(app);
+    const gameStateRef = ref(db, "gameState");
+
     // Expose for client.js
     window.db = db;
     window.gameStateRef = gameStateRef;
-
-    // 🔥 This is the missing piece
-    const db = getDatabase(app);
-    const gameStateRef = ref(db, "gameState");
+    window.isController = true; // Flag to indicate this is the controller page
 
     
 
