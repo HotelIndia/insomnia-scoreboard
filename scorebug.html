@@ -84,6 +84,37 @@
     <div class="timer" id="timer">20:00</div>
   </div>
 
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      set,
+      update,
+      onValue
+    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDKvdZzZuur_xafRk8gmysrzfNH-hPepFY",
+      authDomain: "insomnia-scoreboard.firebaseapp.com",
+      databaseURL: "https://insomnia-scoreboard-default-rtdb.firebaseio.com",
+      projectId: "insomnia-scoreboard",
+      storageBucket: "insomnia-scoreboard.firebasestorage.app",
+      messagingSenderId: "702600879166",
+      appId: "1:702600879166:web:8c50de9529069b264a456f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+
+    // 🔥 This is the missing piece
+    const db = getDatabase(app);
+    const gameStateRef = ref(db, "gameState");
+
+    // Expose for client.js
+    window.db = db;
+    window.gameStateRef = gameStateRef;
+  </script>
+
   <script src="client.js"></script>
   <script>
     // Map team names to short codes and logos
