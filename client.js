@@ -17,52 +17,79 @@ let wakeLock = null;
 // REALTIME STATE LISTENER (replaces WebSocket onmessage)
 // ===================================================
 
-onValue(window.gameStateRef, (snapshot) => {
-  try {
-    const state = snapshot.val();
-    if (!state) return;
-
-    currentState = state;
-    updateUI(state);
-  } catch (error) {
-    console.error("Error updating state:", error);
+// Wait for gameStateRef to be available before setting up listener
+function setupStateListener() {
+  if (!window.gameStateRef) {
+    console.warn("gameStateRef not ready, retrying...");
+    setTimeout(setupStateListener, 100);
+    return;
   }
-});
+
+  onValue(window.gameStateRef, (snapshot) => {
+    try {
+      const state = snapshot.val();
+      if (!state) return;
+
+      currentState = state;
+      updateUI(state);
+    } catch (error) {
+      console.error("Error updating state:", error);
+    }
+  });
+}
+
+setupStateListener();
 
 // ===================================================
 // COMMAND SENDER (replaces WebSocket send)
 // ===================================================
 
 window.sendCommand = function (action, team) {
-  if (!currentState) return;
+  if (!currentState) {
+    console.warn("sendCommand: currentState is not initialized");
+    return;
+  }
+
+  if (!window.gameStateRef) {
+    console.error("sendCommand: window.gameStateRef is not defined");
+    return;
+  }
 
   try {
     switch (action) {
       case "incScore":
-        if (!currentState[team] || typeof currentState[team].score !== "number") return;
+        const currentScore = currentState[team]?.score ?? 0;
+        const newScore = currentScore + 1;
+        console.log(`Updating ${team} score: ${currentScore} -> ${newScore}`);
         update(window.gameStateRef, {
-          [`${team}/score`]: currentState[team].score + 1
+          [`${team}/score`]: newScore
         }).catch(error => console.error("Error updating score:", error));
         break;
 
       case "decScore":
-        if (!currentState[team] || typeof currentState[team].score !== "number") return;
+        const currentScoreDec = currentState[team]?.score ?? 0;
+        const newScoreDec = Math.max(0, currentScoreDec - 1);
+        console.log(`Updating ${team} score: ${currentScoreDec} -> ${newScoreDec}`);
         update(window.gameStateRef, {
-          [`${team}/score`]: Math.max(0, currentState[team].score - 1)
+          [`${team}/score`]: newScoreDec
         }).catch(error => console.error("Error updating score:", error));
         break;
 
       case "incFoul":
-        if (!currentState[team] || typeof currentState[team].fouls !== "number") return;
+        const currentFouls = currentState[team]?.fouls ?? 0;
+        const newFouls = currentFouls + 1;
+        console.log(`Updating ${team} fouls: ${currentFouls} -> ${newFouls}`);
         update(window.gameStateRef, {
-          [`${team}/fouls`]: currentState[team].fouls + 1
+          [`${team}/fouls`]: newFouls
         }).catch(error => console.error("Error updating fouls:", error));
         break;
 
       case "decFoul":
-        if (!currentState[team] || typeof currentState[team].fouls !== "number") return;
+        const currentFoulsDec = currentState[team]?.fouls ?? 0;
+        const newFoulsDec = Math.max(0, currentFoulsDec - 1);
+        console.log(`Updating ${team} fouls: ${currentFoulsDec} -> ${newFoulsDec}`);
         update(window.gameStateRef, {
-          [`${team}/fouls`]: Math.max(0, currentState[team].fouls - 1)
+          [`${team}/fouls`]: newFoulsDec
         }).catch(error => console.error("Error updating fouls:", error));
         break;
 
@@ -137,15 +164,25 @@ if (window.isController) {
 // BUZZER LISTENER (replaces WS event)
 // ===================================================
 
-onValue(ref(window.db, "gameState/lastBuzzer"), (snapshot) => {
-  try {
-    if (snapshot.exists()) {
-      playBuzzer();
-    }
-  } catch (error) {
-    console.error("Error in buzzer listener:", error);
+function setupBuzzerListener() {
+  if (!window.db) {
+    console.warn("db not ready, retrying buzzer listener...");
+    setTimeout(setupBuzzerListener, 100);
+    return;
   }
-});
+
+  onValue(ref(window.db, "gameState/lastBuzzer"), (snapshot) => {
+    try {
+      if (snapshot.exists()) {
+        playBuzzer();
+      }
+    } catch (error) {
+      console.error("Error in buzzer listener:", error);
+    }
+  });
+}
+
+setupBuzzerListener();
 
 // ===================================================
 // CONTROLLER UI HELPERS
