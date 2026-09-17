@@ -12,7 +12,12 @@
       align-items: center;
       justify-content: center;
     }
-    h1 { margin-bottom: 10px; }
+    h1 { 
+      margin-bottom: 10px; 
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
     .team {
       /* margin-bottom: 20px; */
       border: 1px solid #ccc;
@@ -30,7 +35,7 @@
       border: 1px solid #ccc;
       padding: 10px;
       border-radius: 8px;
-      max-width: 350px;
+      max-width: 250px;
     }
     .value {
       font-size: 20px;
@@ -46,41 +51,29 @@
   </style>
 </head>
 <body>
-    <!-- <h2>Display Preview</h2> -->
     <div style="width: 30vw; height: 30vh; overflow: hidden; border: 1px solid #ccc; background: black;">
         <iframe id="scoreboard-preview" src="scoreboard.html" style="width: 100vw; height: 100vh; border: 0; display: block; transform: scale(0.3); transform-origin: 0 0;"></iframe>
     </div>
   
     <div class="controls">
         <div class="team">
-            <!-- <select id="team1-select" onchange="setTeam('team1')" 
-                style="font-size: 20px; font-weight: bold; padding: 10px; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 5px; background: white;">
-                <option value="Grizzlies FC" data-color="maroon" selected>Grizzlies FC</option>
-                <option value="Sports Experts" data-color="white">Sports Experts</option>
-                <option value="Good Vibes FC" data-color="blue">Good Vibes FC</option>
-                <option value="Riverdale FC" data-color="green">Riverdale FC</option>
-            </select> -->
-            
-            <div value="Home Team">Home Team</div>
-
-
-            <div class="value">Score: <span id="team1-score">0</span></div>
-            <div class="value">Fouls: <span id="team1-fouls">0</span></div>
-
-            <button onclick="sendCommand('incScore', 'team1')">+ Score</button>
-            <button onclick="sendCommand('decScore', 'team1')">- Score</button>
-            <button onclick="sendCommand('incFoul', 'team1')">+ Foul</button>
-            <button onclick="sendCommand('decFoul', 'team1')">- Foul</button>
+            <!-- <h1>Left team</h1> -->
+            <div class="value">Score: <span id="team-left-score">0</span></div>
+            <div class="value">Fouls: <span id="team-left-fouls">0</span></div>
+            <button onclick="sendCommand('incScore', 'team-left')">+ Score</button>
+            <button onclick="sendCommand('decScore', 'team-left')">- Score</button>
+            <button onclick="sendCommand('incFoul', 'team-left')">+ Foul</button>
+            <button onclick="sendCommand('decFoul', 'team-left')">- Foul</button>
         </div>
         
         <div class="timer-controls">
-            <h2>Timer</h2>
+            <h1>Timer</h1>
             <div class="value">Time: <span id="timer">20:00</span></div>
-            <div style="margin: 10px 0;">
-                <label for="timer-minutes">Min:</label>
-                <input type="number" id="timer-minutes" value="20" min="0" max="59" style="width: 40px; margin: 0 10px;">
-                <label for="timer-seconds">Sec:</label>
-                <input type="number" id="timer-seconds" value="0" min="0" max="59" style="width: 40px; margin: 0 10px;">
+            <div style="margin: 10px 0px; ">
+                <label for="timer-minutes">Min</label>
+                <input type="number" id="timer-minutes" value="20" min="0" max="59" style="width: 40px; margin-right: 10px;">
+                <label for="timer-seconds">Sec</label>
+                <input type="number" id="timer-seconds" value="0" min="0" max="59" style="width: 40px; margin-right: 10px;">
                 <button onclick="setTimerDuration()">Set Duration</button>  
             </div>
             <button id="toggle-timer" onclick="toggleTimer()">Start</button>
@@ -88,65 +81,22 @@
         </div>
 
         <div class="team">
-            <select id="team2-select" onchange="setTeam('team2')" 
-            style="font-size: 20px; font-weight: bold; padding: 10px; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 5px; background: white;">
-                <option value="Grizzlies FC" data-color="maroon">Grizzlies FC</option>
-                <option value="Sports Experts" data-color="white" selected>Sports Experts</option>
-                <option value="Good Vibes FC" data-color="blue">Good Vibes FC</option>
-                <option value="Riverdale FC" data-color="green">Riverdale FC</option>
-            </select>
-            <div class="value">Score: <span id="team2-score">0</span></div>
-            <div class="value">Fouls: <span id="team2-fouls">0</span></div>
-            <button onclick="sendCommand('incScore', 'team2')">+ Score</button>
-            <button onclick="sendCommand('decScore', 'team2')">- Score</button>
-            <button onclick="sendCommand('incFoul', 'team2')">+ Foul</button>
-            <button onclick="sendCommand('decFoul', 'team2')">- Foul</button>
+          <!-- <h1>Right team </h1>   -->
+          
+            <div class="value">Score: <span id="team-right-score">0</span></div>
+            <div class="value">Fouls: <span id="team-right-fouls">0</span></div>
+            <button onclick="sendCommand('incScore', 'team-right')">+ Score</button>
+            <button onclick="sendCommand('decScore', 'team-right')">- Score</button>
+            <button onclick="sendCommand('incFoul', 'team-right')">+ Foul</button>
+            <button onclick="sendCommand('decFoul', 'team-right')">- Foul</button>
         </div>
 
     </div>
 
   <div style="margin: 20px 0; text-align: center;">
-    <button onclick="sendCommand('switchSides')" style="padding: 15px 30px; font-size: 18px; background-color: #ff6b6b; color: white; border: none; border-radius: 5px;">Switch Sides</button>
+    <button onclick="sendCommand('switchSides')">Switch Sides</button>
 
   </div>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import {
-      getDatabase,
-      ref,
-      set,
-      update,
-      onValue
-    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDKvdZzZuur_xafRk8gmysrzfNH-hPepFY",
-      authDomain: "insomnia-scoreboard.firebaseapp.com",
-      databaseURL: "https://insomnia-scoreboard-default-rtdb.firebaseio.com",
-      projectId: "insomnia-scoreboard",
-      storageBucket: "insomnia-scoreboard.firebasestorage.app",
-      messagingSenderId: "702600879166",
-      appId: "1:702600879166:web:8c50de9529069b264a456f"
-    };
-
-    const app = initializeApp(firebaseConfig);
-
-    // Initialize Firebase database and references
-    const db = getDatabase(app);
-    const gameStateRef = ref(db, "gameState");
-
-    // Expose for client.js
-    window.db = db;
-    window.gameStateRef = gameStateRef;
-    window.isController = true; // Flag to indicate this is the controller page
-
-    
-
-    // const app = initializeApp(firebaseConfig);
-    // window.db = getDatabase(app);
-    // window.dbRef = ref(window.db, "gameState");
-  </script>
-
 
   <script type="module" src="client.js"></script>
 </body>

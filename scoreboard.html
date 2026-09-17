@@ -82,51 +82,19 @@
   <div class="scoreboard">
     <div class="team">
       <!-- <div class="team-name" id="team1-name">Team 1</div> -->
-      <div class="score" id="team1-score">0</div>
-      <div class="fouls"><span id="team1-fouls">0</span></div>
+      <div class="score" id="team-left-score">0</div>
+      <div class="fouls"><span id="team-left-fouls">0</span></div>
     </div>
     <div class="team">
       <!-- <div class="team-name" id="team2-name">Team 2</div> -->
-      <div class="fouls"><span id="team2-fouls">0</span></div>
-      <div class="score" id="team2-score">0</div>
+      <div class="fouls"><span id="team-right-fouls">0</span></div>
+      <div class="score" id="team-right-score">0</div>
       
     </div>
   </div>
   <!-- Wake Lock Indicator -->
   <div class="wake-lock-indicator" id="wake-lock-indicator"></div>
-  
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import {
-      getDatabase,
-      ref,
-      set,
-      update,
-      onValue
-    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDKvdZzZuur_xafRk8gmysrzfNH-hPepFY",
-      authDomain: "insomnia-scoreboard.firebaseapp.com",
-      databaseURL: "https://insomnia-scoreboard-default-rtdb.firebaseio.com",
-      projectId: "insomnia-scoreboard",
-      storageBucket: "insomnia-scoreboard.firebasestorage.app",
-      messagingSenderId: "702600879166",
-      appId: "1:702600879166:web:8c50de9529069b264a456f"
-    };
-
-    const app = initializeApp(firebaseConfig);
-
-    // 🔥 This is the missing piece
-    const db = getDatabase(app);
-    const gameStateRef = ref(db, "gameState");
-
-    // Expose for client.js
-    window.db = db;
-    window.gameStateRef = gameStateRef;
-    // Not the controller, so timer loop won't run
-    window.isController = false;
-  </script>
 
   <script type="module" src="client.js"></script>
   <audio id="buzzer" src="buzzer.mp3" preload="auto"></audio>
