@@ -76,7 +76,8 @@
                 <input type="number" id="timer-seconds" value="0" min="0" max="59" style="width: 40px; margin-right: 10px;">
                 <button onclick="setTimerDuration()">Set Duration</button>  
             </div>
-            <button id="toggle-timer" onclick="toggleTimer()">Start</button>
+            <!-- <button id="toggle-timer" onclick="toggleTimer()">Start</button> -->
+            <button onclick="sendCommand('toggleTimer')">Start</button>
             <button onclick="sendCommand('resetTimer')">Reset</button>
         </div>
 
