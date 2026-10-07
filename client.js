@@ -22,8 +22,8 @@ let _channel = null;
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return clone(DEFAULT_STATE);
-    const parsed = JSON.parse(raw);
+    if (!raw) return clone(DEFAULT_STATE); // checking if stae is in JSON
+    const parsed = JSON.parse(raw); // converting JSON to object
     // Merge with defaults to ensure missing fields
     return Object.assign(clone(DEFAULT_STATE), parsed);
   } catch (e) {
@@ -38,9 +38,11 @@ function saveState(state) {
   broadcastState(state);
 }
 
+// takes in JSON, turns to object, then turns back into JSON
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
+
 
 function broadcastState(state) {
   // BroadcastChannel (fast) if available
