@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scoreboard</title>
+  <style>
+    body {
+      background: black;
+      color: red;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .scoreboard {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      /* margin-bottom: 50px; */
+    }
+
+    
+    .team {
+      /* text-align: center; */
+      
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: end;
+      flex: 1;
+    }
+
+    .team-name {
+      /* not displaying rn */
+      font-size: 8vw;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+
+    .score {
+      font-size: 25vw;
+      font-weight: bold;
+      margin-right: 50px;
+      margin-left: 50px;
+    }
+
+    .fouls {
+      font-size: 15vw;
+      font-weight: bold;
+      /* margin-top: 20px; */
+    }
+
+    .timer {
+      display: flex;
+      font-size: 25vw;
+      font-weight: bold;
+      /* margin-top: 5px; */
+    }
+    .wake-lock-indicator{
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background-color: red;
+      opacity: 0; /* hidden by default */
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="timer" id="timer">20:00</div>
+
+  <div class="scoreboard">
+    <div class="team">
+      <!-- <div class="team-name" id="team1-name">Team 1</div> -->
+      <div class="score" id="team-right-score">0</div>
+      <div class="fouls"><span id="team-right-fouls">0</span></div>
+    </div>
+    <div class="team">
+      <!-- <div class="team-name" id="team2-name">Team 2</div> -->
+      <div class="fouls"><span id="team-left-fouls">0</span></div>
+      <div class="score" id="team-left-score">0</div>
+      
+    </div>
+  </div>
+  <!-- Wake Lock Indicator -->
+  <div class="wake-lock-indicator" id="wake-lock-indicator"></div>
+
+
+  <script type="module" src="client.js"></script>
+
+</body>
+</html>

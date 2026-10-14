@@ -1,5 +1,5 @@
 // Shared scoreboard client logic (browser-only, works on GitHub Pages)
-// Provides tab-scoped scoreboard state, a shared timer, action handlers, and UI rendering.
+// Provides persistent scoreboard state, a shared timer, action handlers, and UI rendering.
 
 const STORAGE_KEY = "scoreboard_state_v1";
 const TIMER_STORAGE_KEY = "timer";
@@ -38,7 +38,7 @@ const timerChannel = typeof BroadcastChannel === "undefined"
 
 // load saved state or start with the defaults
 function loadDefaultState() {
-  const raw = sessionStorage.getItem(STORAGE_KEY);
+  const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return clone(DEFAULT_STATE);
 
   try {
@@ -85,10 +85,10 @@ function normalizeScoreboardState(savedState) {
   return state;
 }
 
-// save scoreboard state for this tab
+// save scoreboard state across tabs
 function saveState(state) {
   _state = state;
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 // handle html input
