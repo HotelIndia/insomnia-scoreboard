@@ -1,6 +1,5 @@
 // Shared scoreboard client logic (browser-only, works on GitHub Pages)
-// Provides: tab-scoped state (sessionStorage) and updates between same-origin pages,
-// timer management, action handlers, and a default updateUI that pages can override.
+// Provides tab-scoped scoreboard state, a shared timer, action handlers, and UI rendering.
 
 const STORAGE_KEY = "scoreboard_state_v1";
 const TIMER_STORAGE_KEY = "timer";
@@ -8,10 +7,22 @@ const TIMER_CHANNEL_NAME = "scoreboard_timer_channel_v1";
 const CENTISECONDS_PER_SECOND = 100;
 const DEFAULT_TIMER_CENTISECONDS = 20 * 60 * CENTISECONDS_PER_SECOND;
 const TIMER_UPDATE_INTERVAL_MS = 50;
+const TEAMS = {
+  riverdale: { name: "Riverdale FC", color: "green" },
+  grizzlies: { name: "Grizzlies FC", color: "blue" },
+  northOf60: { name: "North of 60", color: "red" },
+  latinLovers: { name: "Latin Lovers", color: "magenta" },
+  porcupine: { name: "Porcupine FC", color: "whitesmoke" },
+  goodVibes: { name: "Good Vibes FC", color: "lightblue" }
+};
 
 const DEFAULT_STATE = {
-  team1: { score: 0, fouls: 0, name: "Team 1" },
-  team2: { score: 0, fouls: 0, name: "Team 2" },
+  teams: Object.fromEntries(Object.keys(TEAMS).map((teamId) => [
+    teamId,
+    { score: 0, fouls: 0 }
+  ])),
+  team1Id: "riverdale",
+  team2Id: "grizzlies",
   sidesSwitched: false
 };
 
@@ -30,11 +41,7 @@ function loadDefaultState() {
   if (!raw) return clone(DEFAULT_STATE);
 
   try {
-    const savedState = JSON.parse(raw);
-    const state = Object.assign(clone(DEFAULT_STATE), savedState);
-    delete state.timer;
-    delete state.timerRunning;
-    return state;
+    return normalizeScoreboardState(JSON.parse(raw));
   } catch (error) {
     console.warn("Could not load saved scoreboard state; using defaults", error);
     return clone(DEFAULT_STATE);
@@ -45,7 +52,39 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-// save state so the scoreboard page can receive updates
+function normalizeScoreboardState(savedState) {
+  const state = Object.assign(clone(DEFAULT_STATE), savedState);
+  if (!TEAMS[state.team1Id]) state.team1Id = DEFAULT_STATE.team1Id;
+  if (!TEAMS[state.team2Id]) state.team2Id = DEFAULT_STATE.team2Id;
+  state.teams = Object.fromEntries(Object.keys(TEAMS).map((teamId) => [
+    teamId,
+    Object.assign(
+      clone(DEFAULT_STATE.teams[teamId]),
+      savedState.teams?.[teamId] ?? {}
+    )
+  ]));
+  if (!savedState.teams) {
+    if (savedState.team1) {
+      state.teams[state.team1Id] = {
+        score: savedState.team1.score || 0,
+        fouls: savedState.team1.fouls || 0
+      };
+    }
+    if (savedState.team2) {
+      state.teams[state.team2Id] = {
+        score: savedState.team2.score || 0,
+        fouls: savedState.team2.fouls || 0
+      };
+    }
+  }
+  delete state.team1;
+  delete state.team2;
+  delete state.timer;
+  delete state.timerRunning;
+  return state;
+}
+
+// save scoreboard state for this tab
 function saveState(state) {
   _state = state;
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -63,26 +102,23 @@ function sendCommand(action, team) {
   }
 
   const s = _state;
-
-  if (!s.sidesSwitched){
-    if (team == "team-left") {team = "team1"} else (team = "team2")
-    } 
-  if (s.sidesSwitched){
-    if (team == "team-left") {team = "team2"} else (team = "team1")
-    } 
+  const teamId = team === "team-left"
+    ? (s.sidesSwitched ? s.team2Id : s.team1Id)
+    : (s.sidesSwitched ? s.team1Id : s.team2Id);
+  const selectedTeam = s.teams[teamId];
 
   switch (action) {
     case "incScore":
-      s[team].score = s[team].score + 1;
+      selectedTeam.score += 1;
       break;
     case "decScore":
-      s[team].score = Math.max(0, s[team].score - 1);
+      selectedTeam.score = Math.max(0, selectedTeam.score - 1);
       break;
     case "incFoul":
-      s[team].fouls = s[team].fouls + 1;
+      selectedTeam.fouls += 1;
       break;
     case "decFoul":
-      s[team].fouls = Math.max(0, s[team].fouls - 1);
+      selectedTeam.fouls = Math.max(0, selectedTeam.fouls - 1);
       break;
     case "switchSides":
       s.sidesSwitched = !s.sidesSwitched;
@@ -106,12 +142,24 @@ function setTimerDuration(minutes, seconds) {
   triggerRender();
 }
 
+function selectTeam(side, teamId) {
+  if (!Object.hasOwn(TEAMS, teamId)) {
+    console.warn("Unknown team", teamId);
+    return;
+  }
+
+  const stateKey = side === "team-left"
+    ? (_state.sidesSwitched ? "team2Id" : "team1Id")
+    : (_state.sidesSwitched ? "team1Id" : "team2Id");
+  _state[stateKey] = teamId;
+  saveState(_state);
+  triggerRender();
+}
+
 window.addEventListener("storage", (event) => {
   if (event.key !== STORAGE_KEY || !event.newValue) return;
   try {
-    _state = Object.assign(clone(DEFAULT_STATE), JSON.parse(event.newValue));
-    delete _state.timer;
-    delete _state.timerRunning;
+    _state = normalizeScoreboardState(JSON.parse(event.newValue));
     triggerRender();
   } catch (error) {
     console.warn("Could not read scoreboard update", error);
@@ -121,8 +169,7 @@ window.addEventListener("storage", (event) => {
 window.addEventListener("storage", (event) => {
   if (event.key !== TIMER_STORAGE_KEY || event.newValue === null) return;
   timer = Math.max(0, Number(event.newValue) || 0);
-  timerRunning = false;
-  stopTimer();
+  if (timerRunning) lastTimerUpdate = Date.now();
   triggerRender();
 });
 
@@ -223,15 +270,38 @@ function updateUI(state) {
 
   // team scores
   const team_left_score = document.getElementById("team-left-score");
-  if (team_left_score) team_left_score.textContent = state.sidesSwitched ? state.team2.score : state.team1.score;
+  const leftTeamId = state.sidesSwitched ? state.team2Id : state.team1Id;
+  const leftTeam = state.teams[leftTeamId];
+  if (team_left_score) {
+    team_left_score.textContent = leftTeam.score;
+    team_left_score.style.color = TEAMS[leftTeamId]?.color ?? "inherit";
+  }
   const team_right_score = document.getElementById("team-right-score");
-  if (team_right_score) team_right_score.textContent = state.sidesSwitched ? state.team1.score : state.team2.score;
+  const rightTeamId = state.sidesSwitched ? state.team1Id : state.team2Id;
+  const rightTeam = state.teams[rightTeamId];
+  if (team_right_score) {
+    team_right_score.textContent = rightTeam.score;
+    team_right_score.style.color = TEAMS[rightTeamId]?.color ?? "inherit";
+  }
 
   // fouls
   const team_left_fouls = document.getElementById("team-left-fouls");
-  if (team_left_fouls) team_left_fouls.textContent = state.sidesSwitched ? state.team2.fouls : state.team1.fouls;
+  if (team_left_fouls) {
+    team_left_fouls.textContent = leftTeam.fouls;
+    team_left_fouls.style.color = TEAMS[leftTeamId]?.color ?? "inherit";
+  }
   const team_right_fouls = document.getElementById("team-right-fouls");
-  if (team_right_fouls) team_right_fouls.textContent = state.sidesSwitched ? state.team1.fouls : state.team2.fouls;
+  if (team_right_fouls) {
+    team_right_fouls.textContent = rightTeam.fouls;
+    team_right_fouls.style.color = TEAMS[rightTeamId]?.color ?? "inherit";
+  }
+
+  const leftTeamSelect = document.getElementById("team-left-select");
+  const rightTeamSelect = document.getElementById("team-right-select");
+  if (leftTeamSelect) leftTeamSelect.value = leftTeamId;
+  if (rightTeamSelect) rightTeamSelect.value = rightTeamId;
+  if (leftTeamSelect) leftTeamSelect.style.color = TEAMS[leftTeamId]?.color ?? "inherit";
+  if (rightTeamSelect) rightTeamSelect.style.color = TEAMS[rightTeamId]?.color ?? "inherit";
 
   // controller inputs (if present)
   const minutesInput = document.getElementById("timer-minutes");
@@ -282,6 +352,7 @@ function stopTimer() {
     const s = document.getElementById("timer-seconds")?.value || 0;
     setTimerDuration(m, s);
   };
+  window.selectTeam = selectTeam;
   
   triggerRender();
 

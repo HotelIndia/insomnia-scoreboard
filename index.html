@@ -42,6 +42,11 @@
       font-weight: bold;
       margin-bottom: 10px;
     }
+    .team-select {
+      margin-bottom: 10px;
+      max-width: 100%;
+      padding: 5px;
+    }
     .controls{
       display: flex;
       flex-direction: row;
@@ -57,7 +62,15 @@
   
     <div class="controls">
         <div class="team">
-            <!-- <h1>Left team</h1> -->
+            <!-- <label for="team-left-select">Left team</label> -->
+            <select class="value" id="team-left-select" onchange="selectTeam('team-left', this.value)">
+                <option value="riverdale">Riverdale FC</option>
+                <option value="grizzlies">Grizzlies FC</option>
+                <option value="northOf60">North of 60</option>
+                <option value="latinLovers">Latin Lovers</option>
+                <option value="porcupine">Porcupine FC</option>
+                <option value="goodVibes">Good Vibes FC</option>
+            </select>
             <div class="value">Score: <span id="team-left-score">0</span></div>
             <div class="value">Fouls: <span id="team-left-fouls">0</span></div>
             <button onclick="sendCommand('incScore', 'team-left')">+ Score</button>
@@ -82,8 +95,15 @@
         </div>
 
         <div class="team">
-          <!-- <h1>Right team </h1>   -->
-          
+            <!-- <label for="team-right-select">Right team</label> -->
+            <select class="value" id="team-right-select" onchange="selectTeam('team-right', this.value)">
+                <option value="riverdale">Riverdale FC</option>
+                <option value="grizzlies">Grizzlies FC</option>
+                <option value="northOf60">North of 60</option>
+                <option value="latinLovers">Latin Lovers</option>
+                <option value="porcupine">Porcupine FC</option>
+                <option value="goodVibes">Good Vibes FC</option>
+            </select>
             <div class="value">Score: <span id="team-right-score">0</span></div>
             <div class="value">Fouls: <span id="team-right-fouls">0</span></div>
             <button onclick="sendCommand('incScore', 'team-right')">+ Score</button>
