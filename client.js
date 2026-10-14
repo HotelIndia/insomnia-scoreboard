@@ -31,6 +31,7 @@ let _interval = null;
 let timer = DEFAULT_TIMER_CENTISECONDS;
 let timerRunning = false;
 let lastTimerUpdate = 0;
+let timerStatusTimeout = null;
 const timerChannel = typeof BroadcastChannel === "undefined"
   ? null
   : new BroadcastChannel(TIMER_CHANNEL_NAME);
@@ -133,12 +134,14 @@ function sendCommand(action, team) {
 
 // handle setting html timer
 function setTimerDuration(minutes, seconds) {
+  const wasRunning = timerRunning;
   const total = (Number(minutes) || 0) * 60 + (Number(seconds) || 0);
   timer = Math.max(0, Math.floor(total * CENTISECONDS_PER_SECOND));
   timerRunning = false;
   saveTimer();
   stopTimer();
   broadcastTimer();
+  if (wasRunning) showTimerStatus();
   triggerRender();
 }
 
@@ -177,6 +180,7 @@ timerChannel?.addEventListener("message", (event) => {
   const message = event.data;
   if (!message || !Number.isFinite(message.timer)) return;
   const timerJustExpired = timerRunning && !message.running && message.timer === 0;
+  const runningStateChanged = timerRunning !== Boolean(message.running);
   timer = Math.max(0, Math.floor(message.timer));
   timerRunning = Boolean(message.running) && timer > 0;
   lastTimerUpdate = Date.now();
@@ -184,6 +188,7 @@ timerChannel?.addEventListener("message", (event) => {
   else stopTimer();
   syncTimerAudio();
   if (timerJustExpired) playBuzzer();
+  if (runningStateChanged) showTimerStatus();
   triggerRender();
 });
 
@@ -230,16 +235,19 @@ function toggleTimer() {
     saveTimer();
     startTimer();
   }
+  showTimerStatus();
   syncTimerAudio();
   broadcastTimer();
   triggerRender();
 }
 
 function resetTimer() {
+  const wasRunning = timerRunning;
   timer = DEFAULT_TIMER_CENTISECONDS;
   timerRunning = false;
   saveTimer();
   stopTimer();
+  if (wasRunning) showTimerStatus();
   syncTimerAudio();
   broadcastTimer();
   triggerRender();
@@ -259,8 +267,22 @@ function updateTimer() {
     stopTimer();
     syncTimerAudio();
     playBuzzer();
+    showTimerStatus();
     broadcastTimer();
   }
+}
+
+function showTimerStatus() {
+  const border = document.getElementById("timer-status-border");
+  if (!border) return;
+
+  border.style.borderColor = timerRunning ? "green" : "red";
+  border.classList.add("visible");
+  if (timerStatusTimeout !== null) clearTimeout(timerStatusTimeout);
+  timerStatusTimeout = setTimeout(() => {
+    border.classList.remove("visible");
+    timerStatusTimeout = null;
+  }, 5000);
 }
 
 function syncTimerAudio() {
@@ -376,7 +398,7 @@ function stopTimer() {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (event.code !== "Space" || event.repeat) return;
+  if ((event.code !== "ArrowRight" && event.code !== "Space") || event.repeat) return;
   if (event.target?.closest?.("input, select, textarea, [contenteditable='true']")) return;
 
   event.preventDefault();

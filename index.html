@@ -53,9 +53,23 @@
       align-items: center;
       justify-content: center;
     }
+    #timer-status-border {
+      position: fixed;
+      inset: 0;
+      box-sizing: border-box;
+      border: 8px solid red;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      z-index: 9999;
+    }
+    #timer-status-border.visible {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
+    <div id="timer-status-border" aria-hidden="true"></div>
     <div style="width: 30vw; height: 30vh; overflow: hidden; border: 1px solid #ccc; background: black;">
         <iframe id="scoreboard-preview" src="scoreboard.html" style="width: 100vw; height: 100vh; border: 0; display: block; transform: scale(0.3); transform-origin: 0 0;"></iframe>
     </div>
