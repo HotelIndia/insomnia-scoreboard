@@ -176,11 +176,14 @@ window.addEventListener("storage", (event) => {
 timerChannel?.addEventListener("message", (event) => {
   const message = event.data;
   if (!message || !Number.isFinite(message.timer)) return;
+  const timerJustExpired = timerRunning && !message.running && message.timer === 0;
   timer = Math.max(0, Math.floor(message.timer));
   timerRunning = Boolean(message.running) && timer > 0;
   lastTimerUpdate = Date.now();
   if (timerRunning) startTimer();
   else stopTimer();
+  syncTimerAudio();
+  if (timerJustExpired) playBuzzer();
   triggerRender();
 });
 
@@ -227,6 +230,7 @@ function toggleTimer() {
     saveTimer();
     startTimer();
   }
+  syncTimerAudio();
   broadcastTimer();
   triggerRender();
 }
@@ -236,6 +240,7 @@ function resetTimer() {
   timerRunning = false;
   saveTimer();
   stopTimer();
+  syncTimerAudio();
   broadcastTimer();
   triggerRender();
 }
@@ -252,7 +257,38 @@ function updateTimer() {
     timerRunning = false;
     saveTimer();
     stopTimer();
+    syncTimerAudio();
+    playBuzzer();
     broadcastTimer();
+  }
+}
+
+function syncTimerAudio() {
+  const keepAlive = document.getElementById("no_sound");
+  if (!keepAlive) return;
+
+  keepAlive.loop = true;
+  if (timerRunning) {
+    if (keepAlive.paused) {
+      const playback = keepAlive.play();
+      if (playback && typeof playback.catch === "function") {
+        playback.catch((error) => console.warn("Timer keep-alive audio failed", error));
+      }
+    }
+  } else {
+    keepAlive.pause();
+    keepAlive.currentTime = 0;
+  }
+}
+
+function playBuzzer() {
+  const buzzer = document.getElementById("buzzer");
+  if (!buzzer) return;
+
+  buzzer.currentTime = 0;
+  const playback = buzzer.play();
+  if (playback && typeof playback.catch === "function") {
+    playback.catch((error) => console.warn("Buzzer playback failed", error));
   }
 }
 
@@ -339,6 +375,14 @@ function stopTimer() {
   _interval = null;
 }
 
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "Space" || event.repeat) return;
+  if (event.target?.closest?.("input, select, textarea, [contenteditable='true']")) return;
+
+  event.preventDefault();
+  toggleTimer();
+});
+
 // main
 (function init() {
   _state = loadDefaultState();
@@ -357,5 +401,6 @@ function stopTimer() {
   triggerRender();
 
   if (timerRunning) startTimer();
+  syncTimerAudio();
 
 })();
