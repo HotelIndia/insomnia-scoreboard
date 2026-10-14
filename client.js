@@ -282,7 +282,7 @@ function showTimerStatus() {
   timerStatusTimeout = setTimeout(() => {
     border.classList.remove("visible");
     timerStatusTimeout = null;
-  }, 5000);
+  }, 3000);
 }
 
 function syncTimerAudio() {
