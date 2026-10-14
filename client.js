@@ -1,27 +1,51 @@
 // Shared scoreboard client logic (browser-only, works on GitHub Pages)
-// Provides: persistent state (localStorage), cross-tab updates (BroadcastChannel + storage event fallback),
+// Provides: tab-scoped state (sessionStorage) and updates between same-origin pages,
 // timer management, action handlers, and a default updateUI that pages can override.
 
 const STORAGE_KEY = "scoreboard_state_v1";
-const DEFAULT_TIMER_SECONDS = 20 * 60; // 20:00
+const TIMER_STORAGE_KEY = "timer";
+const TIMER_CHANNEL_NAME = "scoreboard_timer_channel_v1";
+const CENTISECONDS_PER_SECOND = 100;
+const DEFAULT_TIMER_CENTISECONDS = 20 * 60 * CENTISECONDS_PER_SECOND;
+const TIMER_UPDATE_INTERVAL_MS = 50;
 
 const DEFAULT_STATE = {
   team1: { score: 0, fouls: 0, name: "Team 1" },
   team2: { score: 0, fouls: 0, name: "Team 2" },
-  timerSeconds: DEFAULT_TIMER_SECONDS,
-  timerRunning: false,
   sidesSwitched: false
 };
 
 let _state = null;
 let _interval = null;
+let timer = DEFAULT_TIMER_CENTISECONDS;
+let timerRunning = false;
+let lastTimerUpdate = 0;
+const timerChannel = typeof BroadcastChannel === "undefined"
+  ? null
+  : new BroadcastChannel(TIMER_CHANNEL_NAME);
 
-// load default state
+// load saved state or start with the defaults
 function loadDefaultState() {
-    return sessionStorage.setItem(STORAGE_KEY, DEFAULT_STATE); 
+  const raw = sessionStorage.getItem(STORAGE_KEY);
+  if (!raw) return clone(DEFAULT_STATE);
+
+  try {
+    const savedState = JSON.parse(raw);
+    const state = Object.assign(clone(DEFAULT_STATE), savedState);
+    delete state.timer;
+    delete state.timerRunning;
+    return state;
+  } catch (error) {
+    console.warn("Could not load saved scoreboard state; using defaults", error);
+    return clone(DEFAULT_STATE);
+  }
 }
 
-// save state to localStorage
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+// save state so the scoreboard page can receive updates
 function saveState(state) {
   _state = state;
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -29,6 +53,15 @@ function saveState(state) {
 
 // handle html input
 function sendCommand(action, team) {
+  if (action === "toggleTimer") {
+    toggleTimer();
+    return;
+  }
+  if (action === "resetTimer") {
+    resetTimer();
+    return;
+  }
+
   const s = _state;
 
   if (!s.sidesSwitched){
@@ -54,13 +87,6 @@ function sendCommand(action, team) {
     case "switchSides":
       s.sidesSwitched = !s.sidesSwitched;
       break;
-    case "toggleTimer":
-      s.timerRunning = !s.timerRunning;
-      break;
-    case "resetTimer":
-      s.timerSeconds = DEFAULT_TIMER_SECONDS;
-      s.timerRunning = false;
-      break;
     default:
       console.warn("Unknown action", action);
       return;
@@ -71,26 +97,129 @@ function sendCommand(action, team) {
 
 // handle setting html timer
 function setTimerDuration(minutes, seconds) {
-  if (!_state) _state = loadState();
-  const s = clone(_state);
   const total = (Number(minutes) || 0) * 60 + (Number(seconds) || 0);
-  s.timerSeconds = Math.max(0, Math.floor(total));
-  s.timerRunning = false;
-  saveState(s);
-  stopInterval();
+  timer = Math.max(0, Math.floor(total * CENTISECONDS_PER_SECOND));
+  timerRunning = false;
+  saveTimer();
+  stopTimer();
+  broadcastTimer();
   triggerRender();
+}
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== STORAGE_KEY || !event.newValue) return;
+  try {
+    _state = Object.assign(clone(DEFAULT_STATE), JSON.parse(event.newValue));
+    delete _state.timer;
+    delete _state.timerRunning;
+    triggerRender();
+  } catch (error) {
+    console.warn("Could not read scoreboard update", error);
+  }
+});
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== TIMER_STORAGE_KEY || event.newValue === null) return;
+  timer = Math.max(0, Number(event.newValue) || 0);
+  timerRunning = false;
+  stopTimer();
+  triggerRender();
+});
+
+timerChannel?.addEventListener("message", (event) => {
+  const message = event.data;
+  if (!message || !Number.isFinite(message.timer)) return;
+  timer = Math.max(0, Math.floor(message.timer));
+  timerRunning = Boolean(message.running) && timer > 0;
+  lastTimerUpdate = Date.now();
+  if (timerRunning) startTimer();
+  else stopTimer();
+  triggerRender();
+});
+
+function loadTimer() {
+  const raw = localStorage.getItem(TIMER_STORAGE_KEY);
+  if (raw) {
+    const storedTimer = Number(raw);
+    if (Number.isFinite(storedTimer)) return Math.max(0, Math.floor(storedTimer));
+
+    try {
+      const oldTimer = JSON.parse(raw);
+      const remaining = Number(oldTimer.remainingCentiseconds);
+      if (Number.isFinite(remaining)) {
+        return Math.max(0, Math.floor(remaining));
+      }
+    } catch (error) {
+      console.warn("Could not load saved timer; using the default duration", error);
+    }
+  }
+
+  const legacySeconds = Number(_state.timer ?? _state.timerSeconds);
+  return Number.isFinite(legacySeconds)
+    ? Math.max(0, Math.floor(legacySeconds * CENTISECONDS_PER_SECOND))
+    : DEFAULT_TIMER_CENTISECONDS;
+}
+
+function saveTimer() {
+  localStorage.setItem(TIMER_STORAGE_KEY, String(timer));
+}
+
+function broadcastTimer() {
+  timerChannel?.postMessage({ timer, running: timerRunning });
+}
+
+function toggleTimer() {
+  updateTimer();
+  if (timerRunning) {
+    timerRunning = false;
+    saveTimer();
+    stopTimer();
+  } else if (timer > 0) {
+    timerRunning = true;
+    lastTimerUpdate = Date.now();
+    saveTimer();
+    startTimer();
+  }
+  broadcastTimer();
+  triggerRender();
+}
+
+function resetTimer() {
+  timer = DEFAULT_TIMER_CENTISECONDS;
+  timerRunning = false;
+  saveTimer();
+  stopTimer();
+  broadcastTimer();
+  triggerRender();
+}
+
+function updateTimer() {
+  if (!timerRunning) return;
+  const now = Date.now();
+  const elapsedCentiseconds = Math.floor((now - lastTimerUpdate) / 10);
+  if (elapsedCentiseconds <= 0) return;
+
+  timer = Math.max(0, timer - elapsedCentiseconds);
+  lastTimerUpdate += elapsedCentiseconds * 10;
+  if (timer === 0) {
+    timerRunning = false;
+    saveTimer();
+    stopTimer();
+    broadcastTimer();
+  }
 }
 
 // calls updateUI with the current state!
 function triggerRender() {
-  updateUI(_state); 
+  updateUI(_state);
 }
 
 // updates visual
 function updateUI(state) {
   // timer
-  const timer = document.getElementById("timer");
-  if (timer) timer.textContent = formatTime(state.timerSeconds);
+  const timerElement = document.getElementById("timer");
+  const secondsRemaining = Math.ceil(timer / CENTISECONDS_PER_SECOND);
+  if (timerElement) timerElement.textContent = formatTime(secondsRemaining);
 
   // team scores
   const team_left_score = document.getElementById("team-left-score");
@@ -107,16 +236,16 @@ function updateUI(state) {
   // controller inputs (if present)
   const minutesInput = document.getElementById("timer-minutes");
   const secondsInput = document.getElementById("timer-seconds");
-  if (minutesInput) minutesInput.value = Math.floor(state.timerSeconds / 60);
-  if (secondsInput) secondsInput.value = state.timerSeconds % 60;
+  if (!timerRunning && minutesInput) minutesInput.value = Math.floor(secondsRemaining / 60);
+  if (!timerRunning && secondsInput) secondsInput.value = secondsRemaining % 60;
 
   // timer button label
   const toggle_timer = document.getElementById("toggle-timer");
-  if (toggle_timer) toggle_timer.textContent = state.timerRunning ? "Pause" : "Start";
+  if (toggle_timer) toggle_timer.textContent = timerRunning ? "Pause" : "Start";
 
   // wake lock indicator (optional)
   const wake = document.getElementById("wake-lock-indicator");
-  if (wake) wake.style.opacity = state.timerRunning ? "1" : "0";
+  if (wake) wake.style.opacity = timerRunning ? "1" : "0";
 }
 
 // helper function for UpdateUI
@@ -126,18 +255,25 @@ function formatTime(totalSeconds) {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
-function startTimer(){
-  // decrease _state.timerSeconds by 1 each second as long as _state.timerRunning is true
-  triggerRender()
+function startTimer() {
+  if (_interval) return;
+  _interval = setInterval(() => {
+    updateTimer();
+    triggerRender();
+  }, TIMER_UPDATE_INTERVAL_MS);
 }
 
-function stopTimer(){
-  // if _state.timerRunning is false, stop the timer
+function stopTimer() {
+  if (!_interval) return;
+  clearInterval(_interval);
+  _interval = null;
 }
 
 // main
 (function init() {
-  _state = loadDefaultState(); // initialize defualt state
+  _state = loadDefaultState();
+  timer = loadTimer();
+  saveTimer();
   
   // Expose functions globally html buttons can use functions
   window.sendCommand = sendCommand;
@@ -149,8 +285,6 @@ function stopTimer(){
   
   triggerRender();
 
-  // start interval if state says running
-  if (_state.timerRunning) startTimer();
-  if (!_state.timerRunning) stopTimer();
+  if (timerRunning) startTimer();
 
 })();
